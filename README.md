@@ -63,6 +63,48 @@ It implements **three core spatial workflows**, each powered by PostGIS:
   - Maps centre on Dublin by default.  
   - Session entries inherit venue coordinates automatically.  
   - Allows full visual editing of spatial data.  
+  
+## Database Schema
+
+```mermaid
+erDiagram
+    VENUE ||--o{ GAMESESSION : "has many"
+    COUNTY ||--o{ VENUE: "spatially contains (by query ST_Within)"
+    COUNTY ||--o{ GAMESESSION: "spatially contains (by query ST_Within)"
+
+    VENUE {
+      int id PK
+      varchar name
+      varchar address
+      point   location  "SRID 4326 (PointField)"
+      timestamp created_at
+      timestamp updated_at
+    }
+
+    GAMESESSION {
+      int id PK
+      varchar name
+      varchar system      "e.g., Warhammer 40k, AoS"
+      varchar organiser
+      int capacity
+      int available_slots
+      point   location    "SRID 4326 (PointField)"
+      int venue_id FK     "FK → VENUE.id"
+      timestamp start_time
+      timestamp end_time
+      timestamp created_at
+      timestamp updated_at
+    }
+
+    COUNTY {
+      int id PK
+      varchar name
+      varchar province    "Leinster, Munster, Connacht, Ulster"
+      multipolygon geom   "SRID 4326 (MultiPolygonField)"
+    }
+
+```
+
 
 ---
 
@@ -71,6 +113,39 @@ It implements **three core spatial workflows**, each powered by PostGIS:
 - **PostGIS** used for all spatial queries and indexing.  
 - **Asynchronous `fetch()` requests** ensure fast, seamless map updates.  
 - Modular design supports future expansion with minimal refactoring.  
+
+
+
+## System Architecture
+
+```mermaid
+flowchart LR
+  %% User -> Frontend -> Backend -> Database
+
+  subgraph Browser["User's Browser"]
+    A[Leaflet.js Map UI] --> B[REST API Requests]
+  end
+
+  subgraph Django["Django Backend"]
+    B --> C[Views & Serializers]
+    C --> D[PostGIS Database]
+    D --> C[Spatial Queries]
+    C --> A[GeoJSON Responses]
+  end
+
+  subgraph Data["Data Sources"]
+    E[County Boundaries EPSG 2157 to 4326]
+    F[Seed Data Venues & Sessions]
+  end
+
+  E --> D
+  F --> D
+
+
+
+```
+
+
 
 ---
 
